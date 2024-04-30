@@ -61,8 +61,8 @@ class PressureReading:
         return f'Gauge #{self.id}: Status {self.status} ({self.statusMsg()}), Pressure: {self.pressure} mbar\n'
 
 
-class Mnemonics(Enum):...
-class Controls(Enum):...
+class M(Enum):...
+class C(Enum):...
 
 class MaxiGauge:
     '''Обёртка для сеанса ввода/вывода с инструментом MaxiGauge™ Pfeiffer Vacuum TPG256A.
@@ -94,7 +94,7 @@ class MaxiGauge:
         except pyvisa.errors.VisaIOError:
             raise MaxiGaugeError('Instrument not found at the address.')
         
-        #self.send(C['ETX']) ### Оставлю на случай, если понадобится сбрасывать устройство при подключении.
+        #self.send(Controls.ETX) ### Оставлю на случай, если понадобится сбрасывать устройство при подключении.
 
     def checkDevice(self) -> str:
         '''Получить информацию о контрасте экрана и нажатых кнопках на инструменте.
@@ -189,9 +189,14 @@ Keys since MaxiGauge was switched on: {", ".join(map(str, self.pressedKeys()))} 
         self.t.start()
 
     def continuousPressureUpdates(self):
-        '''Бесконечный цикл считывания и записи в лог-файл значений давления с инструмента.
+        '''Бесконечный цикл считывания и записи в лог-файл значений давления с инструмента. \
+        Пока ключ stopping_continuous_update не True, он выполняет следующие действия на повторе:
+            1. Кэширует показания датчиков и время их снятия
+            2. Записывает их в логфайл
+            3. (Иногда) записывает усреднённые показания датчиков и непонятно пока, какое, время снятия
+            4. Как-то сложно вычисляет время ожидания до следующего цикла
         '''
-        cache = []
+        cache: list[list[float]] = []
         while not self.stopping_continuous_update.is_set():
             start_time = time.time()
             self.update_counter += 1
@@ -199,13 +204,11 @@ Keys since MaxiGauge was switched on: {", ".join(map(str, self.pressedKeys()))} 
             cache.append([time.time()] + [sensor.pressure if sensor.status in [0,1,2] else float('nan') for sensor in self.cached_pressures] )
             if self.log_every > 0 and (self.update_counter%self.log_every == 0):
                 logtime = cache[self.log_every/2][0]
-                cache = zip(*cache) # transpose cache
-                cache = cache[1:] # remove first element
-                avgs = [(sum(vals)/self.log_every) for vals in cache]
-                self.log_to_file(logtime=logtime, logvalues=avgs)
+                avgs = [(sum(vals)/self.log_every) for vals in list(zip(*cache))[1:]]
+                self.logToFile(logtime=logtime, logvalues=avgs)
                 cache = []
             time.sleep(0.1) # we want a minimum pause of 0.1 s
-            while not self.stopping_continuous_update.isSet() and (self.update_time - (time.time()-startTime) > .2):
+            while not self.stopping_continuous_update.isSet() and (self.update_time - (time.time()-start_time) > .2):
                 time.sleep(.2)
             time.sleep(max([0., self.update_time - (time.time()-start_time)]))
         #sys.stderr.write(line)
@@ -253,7 +256,7 @@ Keys since MaxiGauge was switched on: {", ".join(map(str, self.pressedKeys()))} 
         '''
         if self.debug: print(repr(message))
 
-    def send(self, mnemonic: Mnemonics | str, num_enquiries = 0) -> str:
+    def send(self, mnemonic: M | str, num_enquiries = 0) -> str:
         '''Отправить мнемонику инструменту и получить полный ответ.
         
         Параметры
@@ -274,7 +277,7 @@ Keys since MaxiGauge was switched on: {", ".join(map(str, self.pressedKeys()))} 
             response.append(self.read())            # Получение данных
         return response
 
-    def write(self, what: str):
+    def write(self, what: M | str):
         '''Отправить сообщение инструменту.
         
         Параметры
@@ -286,9 +289,9 @@ Keys since MaxiGauge was switched on: {", ".join(map(str, self.pressedKeys()))} 
         self.connection.write(what)
 
     def enquire(self):
-        '''Отправить инструменту строку <ENQ> - запрос за передачу данных.
+        '''Отправить инструменту строку ENQ - запрос за передачу данных.
         '''
-        self.write(Controls.ENQ)
+        self.write(C.ENQ)
 
     def read(self) -> str:
         '''Прочитать информацию с инструмента до первого конца строки.
@@ -306,11 +309,10 @@ Keys since MaxiGauge was switched on: {", ".join(map(str, self.pressedKeys()))} 
         self.debugMessage(return_code)
         
         # В контроллере Франкфуртского университета есть баг с командой DCC, при котором контроллер забывает ответить ACQ/NAK. Оставлю этот exception на случай, если с нашим произойдёт то же самое:
-        
         if len(return_code)<3: raise MaxiGaugeError('Only received a line termination from MaxiGauge. Was expecting ACQ or NAK.')
         
         # Отказ 😳
-        if len(return_code) > 2 and return_code[-3] == Controls.NAK:
+        if len(return_code) > 2 and return_code[-3] == C.NAK:
             self.enquire()
             error = self.read().split(',', 1)
             print(repr(error))
@@ -320,7 +322,7 @@ Keys since MaxiGauge was switched on: {", ".join(map(str, self.pressedKeys()))} 
             }
             raise MaxiGaugeNAKError(errmsg)
         
-        if len(return_code) > 2 and return_code[-3] != Controls.ACQ:
+        if len(return_code) > 2 and return_code[-3] != C.ACQ:
             raise MaxiGaugeError('Expecting ACQ or NAK from MaxiGauge but neither were sent.')
         
         # 100% респекта тем ответам, которые дошли до этой строчки
@@ -332,7 +334,7 @@ Keys since MaxiGauge was switched on: {", ".join(map(str, self.pressedKeys()))} 
         
         if hasattr(self, 'stopping_continuous_update'):
             self.stopping_continuous_update.set()
-        #self.send(Controls.ETX)
+        #self.send(C.ETX)
         if hasattr(self, 'connection') and self.connection: self.connection.close()
 
 
@@ -346,7 +348,7 @@ class MaxiGaugeNAKError(MaxiGaugeError):
 
 ### --- Управляющие cимволы, как определены на стр. 81 английского ---
 ###              мануала для Pfeiffer Vacuum TPG256A
-class Controls(Enum):
+class C(Enum):
     ETX = '\x03', # End of Text (Ctrl-C)   Reset the interface
     CR  = '\x0D', # Carriage Return        Go to the beginning of line
     LF  = '\x0A', # Line Feed              Advance by one line
@@ -355,11 +357,11 @@ class Controls(Enum):
     NAK = '\x15', # Negative Acknowledge   Negative report signal
     ESC = '\x1b', # Escape
 
+LINE_TERMINATION = C.CR + C.LF # CR, LF и CRLF все возможны (стр. 82)
 
-LINE_TERMINATION = Controls.CR + Controls.LF # CR, LF и CRLF все возможны (стр. 82)
 
 ### Мнемоники, как определены на стр. 85
-class Mnemonics(Enum):
+class M(Enum):
   BAU = 'BAU', # Baud rate                           Baud rate                                    95
   CAx = 'CAx', # Calibration factor Sensor x         Calibration factor sensor x (1 ... 6)        92
   CID = 'CID', # Measurement point names             Measurement point names                      88
