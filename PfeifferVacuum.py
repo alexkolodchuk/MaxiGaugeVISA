@@ -109,7 +109,7 @@ Keys since MaxiGauge was switched on: {", ".join(map(str, self.pressedKeys()))} 
         
         Возвращает: list[bool] - список из 5 значений True/False, описывающих, какие кнопки нажаты, а какие - нет.
         '''
-        keys = int(self.send(Mnemonics.TKB, 1)[0])
+        keys = int(self.send(M.TKB, 1)[0])
         pressed_keys = []
         for i in range(4, -1, -1): ### Математика для пересчёта возвращаемого десятичного числа, в двоичное число
             if keys/2**i == 1:
@@ -128,8 +128,8 @@ Keys since MaxiGauge was switched on: {", ".join(map(str, self.pressedKeys()))} 
         
         Возвращает: int - контрастность экрана.
         '''
-        if new_contrast == None: return int(self.send(Mnemonics.DCC, 1)[0])
-        else: return int(self.send(Mnemonics.DCC+','+str(new_contrast), 1)[0])
+        if new_contrast == None: return int(self.send(M.DCC, 1)[0])
+        else: return int(self.send(M.DCC+','+str(new_contrast), 1)[0])
 
     def pressures(self) -> list[PressureReading]:
         '''Считать значения на всех датчиках инструмента.
@@ -154,7 +154,7 @@ Keys since MaxiGauge was switched on: {", ".join(map(str, self.pressedKeys()))} 
         '''
         if sensor < 1 or sensor > 6:
             raise MaxiGaugeError('Sensor can only be between 1 and 6. You choose ' + str(sensor))
-        reading = self.send(Mnemonics.PR+str(sensor), 1)  ### результат будет в виде x,x.xxxEsx <CR><LF> (см. стр. 88)
+        reading = self.send(M.PR+str(sensor), 1)  ### результат будет в виде x,x.xxxEsx <CR><LF> (см. стр. 88)
         try:
             r = reading[0].split(',')
             status = int(r[0])
@@ -216,7 +216,7 @@ Keys since MaxiGauge was switched on: {", ".join(map(str, self.pressedKeys()))} 
             self.flushLogfile()
 
     def logToFile(self, logtime: float = None, logvalues: list[float] = None):
-        '''Записать значения давления в лог-файл.
+        '''Записать значения давлений в лог-файл.
         
         Параметры
         ---------
@@ -233,8 +233,7 @@ Keys since MaxiGauge was switched on: {", ".join(map(str, self.pressedKeys()))} 
             logtime = time.time()
         if not logvalues:
             logvalues = [sensor.pressure if sensor.status in [0,1,2] else float('nan') for sensor in self.cached_pressures]
-        line = str(logtime) + ', ' + ', '.join(['%.3E' % val if not math.isnan(val) else '' for val in logvalues])
-        self.logfile.write(line+'\n')
+        self.logfile.write(str(logtime)+', '+', '.join(['%.3E' % val if not math.isnan(val) else '' for val in logvalues])+'\n')
 
     def flushLogfile(self):
         '''Очистить буфер записи лог-файла.

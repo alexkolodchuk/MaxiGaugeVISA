@@ -5,16 +5,16 @@
 
 Оно позволяет выводит значения вакуумного давления и записывать его в лог-файл.
 
-### Requirements
+### Требования к установке
 
 * [Python][] 3.8-3.11
-* [PyVISA][] 1.14+ and [NI VISA][] 14+ to communicate with the MaxiGauge via the RS232 port.
+* [PyVISA][] 1.14+ и [NI VISA][] 14+ для связи с MaxiGauge через порт RS232.
 
-### Credits
+### Спасибо
 
 Philipp Klaus (pklaus) - thank you for writing the original software.
 
-### License
+### Лицензия
 
 Copyright (C) 2024 Aleksey Kolodchuk (Moscow Engineering Physics Institute) \
 This software is licensed under GNU GPLv3 (see LICENSE.md for more information).
