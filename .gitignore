@@ -1,4 +1,2 @@
-measurement-data*
-extract_every_nth_line
-*.pyc
-test*.py
+unused/
+web_resources/

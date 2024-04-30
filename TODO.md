@@ -1,3 +1,10 @@
+## Mine
+
+* Check basic operability on a real MaxiGauge
+* Add log history based on Philipp's comments
+
+## Philipp's
+
 * Use [Cubism](http://square.github.com/cubism/) for data visualization.
 
 ### References
