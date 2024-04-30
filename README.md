@@ -7,8 +7,9 @@
 
 ### Требования к установке
 
-* [Python][] 3.8-3.11
-* [PyVISA][] 1.14+ и [NI VISA][] 14+ для связи с MaxiGauge через порт RS232.
+* [Python][] 3.6+
+* [PyVISA][] 1.14+ и [NI VISA][] 17.5+ для связи с MaxiGauge через порт RS232.
+* [Windows][] 7+
 
 ### Спасибо
 
@@ -22,3 +23,4 @@ This software is licensed under GNU GPLv3 (see LICENSE.md for more information).
 [Python]: http://www.python.org/getit/
 [PyVISA]: https://github.com/pyvisa/pyvisa
 [NI VISA]: https://www.ni.com/en/support/downloads/drivers/download.ni-visa.html
+[Windows]: https://www.microsoft.com/en-us/download/search
